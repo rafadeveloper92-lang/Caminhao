@@ -39,7 +39,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -48,6 +48,24 @@ jobs:
         run: |
           set +o pipefail
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
+
+      - name: Install SDK packages (platform, build-tools, NDK)
+        run: |
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;35.0.0" \
+            "ndk;27.0.12077973"
+
+      - name: Point Gradle to the SDK
+        working-directory: android
+        run: |
+          echo "sdk.dir=${ANDROID_SDK_ROOT:-$ANDROID_HOME}" > local.properties
+          cat local.properties
+
+      - name: Tune Gradle memory for CI
+        working-directory: android
+        run: sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8/' gradle.properties && grep jvmargs gradle.properties
 
       - name: Assemble Debug APK
         working-directory: android
