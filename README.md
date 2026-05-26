@@ -1,20 +1,41 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Controle de Viagens
 
-# Run and deploy your AI Studio app
+Aplicativo **100% offline** para registrar obras, viagens (limpeza/entrega), conclusões e locais favoritos (armazém/casa). Os dados ficam no dispositivo com **SQLite nativo** no Android (via Capacitor) e com **SQLite no navegador** (jeep-sqlite + sql.js) para desenvolvimento web.
 
-This contains everything you need to run your app locally.
+Não há integração com Gemini, Supabase ou outras APIs na aplicação.
 
-View your app in AI Studio: https://ai.studio/apps/eaf23cad-68fd-4793-8ba7-ae62e4f4a514
+## Desenvolvimento web
 
-## Run Locally
+```bash
+npm install
+npm run dev
+```
 
-**Prerequisites:**  Node.js
+Abra o endereço mostrado no terminal. Na primeira execução o `postinstall` copia `sql-wasm.wasm` para `public/assets/`.
 
+## Build Android (APK)
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Pré-requisitos: **Node.js**, **Android Studio** (SDK + JDK que o Studio gerenciar).
+
+```bash
+npm install
+npm run build
+npx cap add android   # só na primeira vez
+npm run android:build
+```
+
+Depois abra o projeto Android e gere o APK:
+
+```bash
+npm run android:open
+```
+
+No Android Studio use **Build → Build Bundle(s) / APK(s) → Build APK(s)**. O APK de debug costuma ficar em `android/app/build/outputs/apk/debug/`.
+
+### Permissões úteis
+
+- **Localização**: o app usa `navigator.geolocation` / APIs nativas para gravar coordenadas. No Android, conceda permissão de localização ao app nas configurações do sistema.
+
+## Estrutura de dados (SQLite)
+
+Tabelas: `works`, `trips`, `completions`, `settings`. O ficheiro da base no Android é gerido pelo plugin `@capacitor-community/sqlite` (sem envio para a nuvem).

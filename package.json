@@ -1,5 +1,5 @@
 {
-  "name": "react-example",
+  "name": "controle-de-viagens",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -8,34 +8,33 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "android:build": "npm run build && npx cap sync android",
+    "android:open": "npx cap open android",
+    "cap:sync": "npx cap sync",
+    "postinstall": "node scripts/copy-sql-wasm.mjs"
   },
   "dependencies": {
-    "@google/genai": "^2.4.0",
-    "@supabase/supabase-js": "^2.106.2",
+    "@capacitor-community/sqlite": "^8.1.0",
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/cli": "^8.3.4",
+    "@capacitor/core": "^8.3.4",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
     "date-fns": "^4.3.0",
-    "dexie": "^4.4.2",
-    "dexie-react-hooks": "^4.4.0",
-    "dotenv": "^17.2.3",
-    "express": "^4.21.2",
     "i18next": "^26.2.0",
     "i18next-browser-languagedetector": "^8.2.1",
+    "jeep-sqlite": "^2.8.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
-    "react-i18next": "^17.0.8",
-    "vite": "^6.2.3"
+    "react-i18next": "^17.0.8"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
-    "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",
-    "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.3"
   }

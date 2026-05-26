@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { db } from './services/db';
-import { Work, Trip } from './types';
+import * as store from './services/sqliteRepo';
+import { Work, Trip, WorkCompletion, Setting } from './types';
 import { Layout, WorkCard, TripHistory, Nav, ConfirmationDialog } from './components/AppComponents';
 import { Plus, Package, Calendar, Truck, Search, Trash2, History, AlertTriangle, MapPin, Navigation, Home, Warehouse, Lock, Edit2 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { ptBR, es, enUS } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { useDatabase } from './context/DatabaseContext';
 
 const getLocale = (lng: string) => {
   if (lng.startsWith('es')) return es;
@@ -17,6 +17,7 @@ const getLocale = (lng: string) => {
 
 export default function App() {
   const { t, i18n } = useTranslation();
+  const { ready, revision, refresh } = useDatabase();
   const [view, setView] = useState<'home' | 'reports' | 'work-details' | 'settings'>('home');
   const [selectedWorkId, setSelectedWorkId] = useState<number | null>(null);
   const [newWorkName, setNewWorkName] = useState('');
@@ -26,45 +27,76 @@ export default function App() {
   const [showAddWork, setShowAddWork] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Live queries for real-time local sync
-  const works = useLiveQuery(() => db.works.reverse().toArray()) || [];
-  
-  const filteredWorks = works.filter(w => 
-    w.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const [works, setWorks] = useState<Work[]>([]);
+  const [allTripsReport, setAllTripsReport] = useState<Trip[]>([]);
+  const [selectedWork, setSelectedWork] = useState<Work | null>(null);
+  const [completionHistory, setCompletionHistory] = useState<WorkCompletion[]>([]);
+  const [warehouseSetting, setWarehouseSetting] = useState<Setting | null>(null);
+  const [homeSetting, setHomeSetting] = useState<Setting | null>(null);
+  const [trips, setTrips] = useState<Trip[]>([]);
+
+  const filteredWorks = works.filter((w) =>
+    w.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  const allTripsReport = useLiveQuery(() => db.trips.toArray()) || [];
+  useEffect(() => {
+    if (!ready) return;
+    void store.getAllWorks().then(setWorks);
+  }, [ready, revision]);
 
-  const selectedWork = useLiveQuery(
-    () => selectedWorkId ? db.works.get(selectedWorkId) : Promise.resolve(null),
-    [selectedWorkId]
-  );
+  useEffect(() => {
+    if (!ready) return;
+    void store.getAllTrips().then(setAllTripsReport);
+  }, [ready, revision]);
 
-  const completionHistory = useLiveQuery(
-    () => selectedWorkId ? db.completions.where('work_id').equals(selectedWorkId).reverse().toArray() : Promise.resolve([]),
-    [selectedWorkId]
-  ) || [];
+  useEffect(() => {
+    if (!ready) return;
+    if (selectedWorkId == null) {
+      setSelectedWork(null);
+      return;
+    }
+    void store.getWorkById(selectedWorkId).then(setSelectedWork);
+  }, [ready, revision, selectedWorkId]);
 
-  const warehouseSetting = useLiveQuery(() => db.settings.get('warehouse')) || null;
-  const homeSetting = useLiveQuery(() => db.settings.get('home')) || null;
+  useEffect(() => {
+    if (!ready || selectedWorkId == null) {
+      setCompletionHistory([]);
+      return;
+    }
+    void store.getCompletionsForWork(selectedWorkId).then(setCompletionHistory);
+  }, [ready, revision, selectedWorkId]);
 
-  const trips = useLiveQuery(
-    () => selectedWorkId ? db.trips.where('work_id').equals(selectedWorkId).toArray() : Promise.resolve([]),
-    [selectedWorkId]
-  ) || [];
+  useEffect(() => {
+    if (!ready) return;
+    void store.getSetting('warehouse').then(setWarehouseSetting);
+  }, [ready, revision]);
+
+  useEffect(() => {
+    if (!ready) return;
+    void store.getSetting('home').then(setHomeSetting);
+  }, [ready, revision]);
+
+  useEffect(() => {
+    if (!ready || selectedWorkId == null) {
+      setTrips([]);
+      return;
+    }
+    void store.getTripsForWork(selectedWorkId).then(setTrips);
+  }, [ready, revision, selectedWorkId]);
 
   async function addWork() {
     if (!newWorkName.trim()) return;
     try {
-      await db.works.add({
+      await store.addWork({
         name: newWorkName,
         gate_password: newWorkGatePassword,
         created_at: new Date().toISOString(),
-        is_finished: false
-      } as Work);
+        is_finished: false,
+      });
       setNewWorkName('');
       setNewWorkGatePassword('');
       setShowAddWork(false);
+      refresh();
     } catch (error) {
       console.error('Failed to add work:', error);
     }
@@ -73,8 +105,9 @@ export default function App() {
   async function updateGatePassword() {
     if (!selectedWorkId) return;
     try {
-      await db.works.update(selectedWorkId, { gate_password: editedPassword });
+      await store.updateWork(selectedWorkId, { gate_password: editedPassword });
       setIsEditingPassword(false);
+      refresh();
     } catch (error) {
       console.error('Failed to update gate password:', error);
     }
@@ -133,8 +166,9 @@ export default function App() {
     if (!loc) return;
 
     try {
-      await db.works.update(selectedWorkId, { lat: loc.lat, lng: loc.lng });
+      await store.updateWork(selectedWorkId, { lat: loc.lat, lng: loc.lng });
       window.alert(t('location_saved'));
+      refresh();
     } catch (error) {
       console.error("Failed to save location", error);
     }
@@ -145,13 +179,14 @@ export default function App() {
     if (!loc) return;
 
     try {
-      await db.settings.put({
+      await store.putSetting({
         id,
         lat: loc.lat,
         lng: loc.lng,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       });
       window.alert(t('location_saved'));
+      refresh();
     } catch (error) {
       console.error("Failed to save special location", error);
     }
@@ -167,14 +202,15 @@ export default function App() {
   async function addTrip(type: 'cleaning' | 'delivery') {
     if (!selectedWorkId) return;
     try {
-      await db.trips.add({
+      await store.addTrip({
         work_id: selectedWorkId,
         timestamp: new Date().toISOString(),
         type,
-        notes: tripNotes
-      } as Trip);
+        notes: tripNotes,
+      });
       setTripNotes('');
       setShowTripTypePicker(false);
+      refresh();
     } catch (error) {
       console.error('Failed to add trip:', error);
     }
@@ -186,17 +222,18 @@ export default function App() {
       const isFinishing = !selectedWork.is_finished;
       const now = new Date().toISOString();
       
-      await db.works.update(selectedWorkId, { 
+      await store.updateWork(selectedWorkId, {
         is_finished: isFinishing,
-        finished_at: isFinishing ? now : undefined
+        finished_at: isFinishing ? now : undefined,
       });
 
       if (isFinishing) {
-        await db.completions.add({
+        await store.addCompletion({
           work_id: selectedWorkId,
-          timestamp: now
+          timestamp: now,
         });
       }
+      refresh();
     } catch (error) {
       console.error('Failed to toggle work status:', error);
     }
@@ -210,11 +247,10 @@ export default function App() {
       message: t('delete_confirm_desc') || 'Tem certeza que deseja excluir esta obra e todos os seus registros? Esta ação não pode ser desfeita.',
       onConfirm: async () => {
         try {
-          await db.works.delete(id);
-          await db.trips.where('work_id').equals(id).delete();
-          await db.completions.where('work_id').equals(id).delete();
+          await store.deleteWorkCascade(id);
           if (selectedWorkId === id) setView('home');
           closeConfirm();
+          refresh();
         } catch (error) {
           console.error('Failed to delete work:', error);
           closeConfirm();
@@ -230,9 +266,9 @@ export default function App() {
       message: t('clear_confirm'),
       onConfirm: async () => {
         try {
-          await db.trips.clear();
-          await db.completions.clear();
+          await store.clearTripsAndCompletions();
           closeConfirm();
+          refresh();
           // Pequeno delay para o usuário ver que limpou antes de um feedback visual se necessário
         } catch (error) {
           console.error('Failed to clear trips:', error);
@@ -249,11 +285,10 @@ export default function App() {
       message: t('clear_works_confirm'),
       onConfirm: async () => {
         try {
-          await db.works.clear();
-          await db.trips.clear();
-          await db.completions.clear();
+          await store.clearAllData();
           setView('home');
           closeConfirm();
+          refresh();
         } catch (error) {
           console.error('Failed to clear data:', error);
           closeConfirm();
