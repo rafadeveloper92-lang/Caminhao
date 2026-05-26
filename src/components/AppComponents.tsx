@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Truck, BarChart3, Plus, ArrowLeft, Calendar, History, Trash2, Languages, Settings, Search, AlertTriangle, X, Check, MapPin, Navigation, Home, Warehouse } from 'lucide-react';
-import { format } from 'date-fns';
+import { safeFormat } from '../lib/safeFormat';
 import { ptBR, es, enUS } from 'date-fns/locale';
 import { Work, Trip } from '../types';
 import { useTranslation } from 'react-i18next';
@@ -152,11 +152,11 @@ export const WorkCard: React.FC<{ work: Work; onClick: () => void; onDelete: (e:
           )}
         </div>
         <span className="text-[10px] text-gray-500 uppercase font-medium mt-1">
-          {t('created_at')}: {format(new Date(work.created_at), 'dd/MM/yy', { locale: getLocale(i18n.language) })}
+          {t('created_at')}: {safeFormat(work.created_at, 'dd/MM/yy', { locale: getLocale(i18n.language) })}
         </span>
         {work.is_finished && work.finished_at && (
           <span className="text-[9px] text-green-500 font-bold uppercase tracking-tighter mt-0.5">
-            {t('finished_at')}: {format(new Date(work.finished_at), 'dd/MM/yy', { locale: getLocale(i18n.language) })}
+            {t('finished_at')}: {safeFormat(work.finished_at, 'dd/MM/yy', { locale: getLocale(i18n.language) })}
           </span>
         )}
       </div>
@@ -207,7 +207,7 @@ export const TripHistory: React.FC<{ trips: Trip[] }> = ({ trips }) => {
                 </span>
               </div>
               <span className="text-sm text-gray-400">
-                {format(new Date(trip.timestamp), "eeee, dd 'de' MMMM", { locale: getLocale(i18n.language) })}
+                {safeFormat(trip.timestamp, "eeee, dd 'de' MMMM", { locale: getLocale(i18n.language) })}
               </span>
               {trip.notes && (
                 <p className="text-[10px] text-gray-500 italic mt-1 flex items-center gap-1">
@@ -217,7 +217,7 @@ export const TripHistory: React.FC<{ trips: Trip[] }> = ({ trips }) => {
             </div>
             <div className="text-right">
               <span className="text-[#E50914] font-bold text-xl drop-shadow-[0_0_5px_rgba(229,9,20,0.3)]">
-                {format(new Date(trip.timestamp), 'HH:mm')}
+                {safeFormat(trip.timestamp, 'HH:mm')}
               </span>
             </div>
           </motion.div>

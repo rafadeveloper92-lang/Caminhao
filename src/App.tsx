@@ -3,7 +3,8 @@ import * as store from './services/sqliteRepo';
 import { Work, Trip, WorkCompletion, Setting, Store } from './types';
 import { Layout, WorkCard, TripHistory, Nav, ConfirmationDialog } from './components/AppComponents';
 import { Plus, Package, Calendar, Truck, Search, Trash2, History, AlertTriangle, MapPin, Navigation, Home, Warehouse, Lock, Edit2, Download, Upload, ShoppingBag } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { safeFormat, tripTimestampInRange } from './lib/safeFormat';
 import { ptBR, es, enUS } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
@@ -543,7 +544,7 @@ export default function App() {
           {selectedWork?.is_finished && selectedWork.finished_at && (
             <div className="flex items-center gap-2 px-1 text-[10px] text-green-500/70 font-bold uppercase tracking-widest">
               <Calendar size={12} />
-              {t('finished_at')}: {format(new Date(selectedWork.finished_at), "dd/MM/yy 'às' HH:mm", { locale: getLocale(i18n.language) })}
+              {t('finished_at')}: {safeFormat(selectedWork.finished_at, "dd/MM/yy 'às' HH:mm", { locale: getLocale(i18n.language) })}
             </div>
           )}
         </div>
@@ -580,7 +581,7 @@ export default function App() {
               {completionHistory.map((comp, idx) => (
                 <div key={comp.id || idx} className="bg-[#141414] p-3 rounded-xl border border-white/5 flex items-center justify-between text-xs">
                   <span className="text-gray-400 font-medium italic">
-                    {format(new Date(comp.timestamp), "eeee, dd 'de' MMMM", { locale: getLocale(i18n.language) })}
+                    {safeFormat(comp.timestamp, "eeee, dd 'de' MMMM", { locale: getLocale(i18n.language) })}
                   </span>
                   <span className="text-green-500 font-black">OK</span>
                 </div>
@@ -730,14 +731,15 @@ export default function App() {
     const startOfCurrentMonth = startOfMonth(new Date());
     const endOfCurrentMonth = endOfMonth(new Date());
     
-    const monthlyTotal = allTripsReport.filter(t => 
-      isWithinInterval(new Date(t.timestamp), { start: startOfCurrentMonth, end: endOfCurrentMonth })
+    const monthlyTotal = allTripsReport.filter((t) =>
+      tripTimestampInRange(t.timestamp, startOfCurrentMonth, endOfCurrentMonth),
     ).length;
 
     const worksWithCounts = works.map(w => {
-      const count = allTripsReport.filter(t => 
-        t.work_id === w.id && 
-        isWithinInterval(new Date(t.timestamp), { start: startOfCurrentMonth, end: endOfCurrentMonth })
+      const count = allTripsReport.filter(
+        (t) =>
+          t.work_id === w.id &&
+          tripTimestampInRange(t.timestamp, startOfCurrentMonth, endOfCurrentMonth),
       ).length;
       return { ...w, count };
     }).filter(w => w.count > 0);
