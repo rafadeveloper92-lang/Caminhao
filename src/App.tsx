@@ -79,7 +79,7 @@ export default function App() {
   const [showAddStore, setShowAddStore] = useState(false);
 
   const filteredWorks = works.filter((w) =>
-    w.name.toLowerCase().includes(searchTerm.toLowerCase()),
+    (w.name ?? '').toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   useEffect(() => {

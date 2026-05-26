@@ -31,7 +31,7 @@ Em **Definições → Lojas e fornecedores** cadastras lojas, podes adicionar **
 
 ## Cópia de segurança
 
-Em **Definições**, exporta ou importa um ficheiro **JSON** com obras, viagens, **lojas** e definições (fica só no dispositivo). Backups antigos (`schemaVersion: 1`) continuam a ser aceites.
+Em **Definições**, exporta ou importa um ficheiro **JSON** com obras, viagens, **lojas** e definições (fica só no dispositivo). São aceites backups RotaCam (`schemaVersion` 1 ou 2) e ficheiros legados no mesmo formato de dados (obras/viagens/definições) com `exported_at` / `version` em vez de `exportedAt` / `schemaVersion`.
 
 ## Licenças / notas
 

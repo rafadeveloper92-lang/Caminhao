@@ -2,7 +2,6 @@ import { Capacitor } from '@capacitor/core';
 import { CapacitorSQLite, SQLiteConnection, SQLiteDBConnection } from '@capacitor-community/sqlite';
 import { defineCustomElements } from 'jeep-sqlite/loader';
 import type {
-  RotacamBackup,
   RotacamExportV1,
   RotacamExportV2,
   Setting,
@@ -317,9 +316,12 @@ export async function putSetting(setting: Setting): Promise<void> {
 export async function getAllStores(): Promise<Store[]> {
   const connection = getDb();
   const res = await connection.query(
-    'SELECT id, name, notes, lat, lng, created_at, updated_at FROM stores ORDER BY name COLLATE NOCASE ASC, id ASC',
+    'SELECT id, name, notes, lat, lng, created_at, updated_at FROM stores ORDER BY id ASC',
   );
-  return rows(res, mapStore);
+  const list = rows(res, mapStore);
+  return list.sort(
+    (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) || (a.id ?? 0) - (b.id ?? 0),
+  );
 }
 
 export async function addStore(input: Pick<Store, 'name' | 'notes'>): Promise<number> {
@@ -426,14 +428,68 @@ function isRotacamExportV2(value: unknown): value is RotacamExportV2 {
   return true;
 }
 
-function isRotacamBackup(value: unknown): value is RotacamBackup {
-  return isRotacamExportV1(value) || isRotacamExportV2(value);
+function isLegacySnakeCaseExport(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as Record<string, unknown>;
+  if (v.schemaVersion === 1 || v.schemaVersion === 2) return false;
+  if (!Array.isArray(v.works) || !Array.isArray(v.trips) || !Array.isArray(v.completions) || !Array.isArray(v.settings)) {
+    return false;
+  }
+  if (v.exported_at !== undefined && typeof v.exported_at !== 'string') return false;
+  if (v.stores !== undefined && !Array.isArray(v.stores)) return false;
+  return true;
+}
+
+function parseTripType(raw: unknown): Trip['type'] {
+  if (raw === 'cleaning' || raw === 'delivery') return raw;
+  throw new Error(`Formato de backup inválido: tipo de viagem "${String(raw)}".`);
+}
+
+/** Aceita RotaCam V1/V2 e export legado (ex.: exported_at / version, sem schemaVersion). */
+function normalizeBackupToV2(payload: unknown): RotacamExportV2 {
+  if (isRotacamExportV2(payload)) return payload;
+  if (isRotacamExportV1(payload)) {
+    return {
+      schemaVersion: 2,
+      exportedAt: payload.exportedAt,
+      works: payload.works,
+      trips: payload.trips,
+      completions: payload.completions,
+      settings: payload.settings,
+      stores: [],
+    };
+  }
+  if (isLegacySnakeCaseExport(payload)) {
+    const v = payload as Record<string, unknown>;
+    const exportedAt =
+      typeof v.exported_at === 'string' && v.exported_at.length > 0 ? v.exported_at : new Date().toISOString();
+    const tripsRaw = v.trips as unknown[];
+    const trips: Trip[] = tripsRaw.map((row) => {
+      if (!row || typeof row !== 'object') throw new Error('Formato de backup inválido: viagem inválida.');
+      const t = row as Record<string, unknown>;
+      return {
+        id: t.id as number,
+        work_id: t.work_id as number,
+        timestamp: t.timestamp as string,
+        type: parseTripType(t.type),
+        notes: typeof t.notes === 'string' ? t.notes : undefined,
+      };
+    });
+    return {
+      schemaVersion: 2,
+      exportedAt,
+      works: v.works as Work[],
+      trips,
+      completions: v.completions as WorkCompletion[],
+      settings: v.settings as Setting[],
+      stores: Array.isArray(v.stores) ? (v.stores as Store[]) : [],
+    };
+  }
+  throw new Error('Formato de backup inválido.');
 }
 
 export async function importAllData(payload: unknown): Promise<void> {
-  if (!isRotacamBackup(payload)) {
-    throw new Error('Formato de backup inválido.');
-  }
+  const data = normalizeBackupToV2(payload);
 
   const connection = getDb();
   await connection.beginTransaction();
@@ -444,7 +500,7 @@ export async function importAllData(payload: unknown): Promise<void> {
     await connection.execute('DELETE FROM settings;', false);
     await connection.execute('DELETE FROM stores;', false);
 
-    const worksSorted = payload.works.slice().sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
+    const worksSorted = data.works.slice().sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
     for (const w of worksSorted) {
       await connection.run(
         'INSERT INTO works (id, name, created_at, is_finished, finished_at, lat, lng, gate_password) VALUES (?,?,?,?,?,?,?,?)',
@@ -463,7 +519,7 @@ export async function importAllData(payload: unknown): Promise<void> {
       );
     }
 
-    const tripsSorted = payload.trips.slice().sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
+    const tripsSorted = data.trips.slice().sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
     for (const tr of tripsSorted) {
       await connection.run(
         'INSERT INTO trips (id, work_id, timestamp, type, notes) VALUES (?,?,?,?,?)',
@@ -473,7 +529,7 @@ export async function importAllData(payload: unknown): Promise<void> {
       );
     }
 
-    const compSorted = payload.completions.slice().sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
+    const compSorted = data.completions.slice().sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
     for (const c of compSorted) {
       await connection.run(
         'INSERT INTO completions (id, work_id, timestamp) VALUES (?,?,?)',
@@ -483,7 +539,7 @@ export async function importAllData(payload: unknown): Promise<void> {
       );
     }
 
-    for (const s of payload.settings) {
+    for (const s of data.settings) {
       await connection.run(
         'INSERT INTO settings (id, lat, lng, updated_at) VALUES (?,?,?,?)',
         [s.id, s.lat, s.lng, s.updated_at],
@@ -492,16 +548,14 @@ export async function importAllData(payload: unknown): Promise<void> {
       );
     }
 
-    if (isRotacamExportV2(payload)) {
-      const storesSorted = payload.stores.slice().sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
-      for (const st of storesSorted) {
-        await connection.run(
-          'INSERT INTO stores (id, name, notes, lat, lng, created_at, updated_at) VALUES (?,?,?,?,?,?,?)',
-          [st.id, st.name, st.notes ?? null, st.lat ?? null, st.lng ?? null, st.created_at, st.updated_at],
-          false,
-          'no',
-        );
-      }
+    const storesSorted = data.stores.slice().sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
+    for (const st of storesSorted) {
+      await connection.run(
+        'INSERT INTO stores (id, name, notes, lat, lng, created_at, updated_at) VALUES (?,?,?,?,?,?,?)',
+        [st.id, st.name, st.notes ?? null, st.lat ?? null, st.lng ?? null, st.created_at, st.updated_at],
+        false,
+        'no',
+      );
     }
 
     await connection.commitTransaction();
