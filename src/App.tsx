@@ -1,13 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as store from './services/sqliteRepo';
 import { Work, Trip, WorkCompletion, Setting } from './types';
 import { Layout, WorkCard, TripHistory, Nav, ConfirmationDialog } from './components/AppComponents';
-import { Plus, Package, Calendar, Truck, Search, Trash2, History, AlertTriangle, MapPin, Navigation, Home, Warehouse, Lock, Edit2 } from 'lucide-react';
+import { Plus, Package, Calendar, Truck, Search, Trash2, History, AlertTriangle, MapPin, Navigation, Home, Warehouse, Lock, Edit2, Download, Upload } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { ptBR, es, enUS } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 import { useDatabase } from './context/DatabaseContext';
+import { useToast } from './components/ToastStack';
+import { playTripRegisteredChime } from './audio/tripChime';
+import { getSoundsEnabled, setSoundsEnabled } from './lib/soundsSettings';
 
 const getLocale = (lng: string) => {
   if (lng.startsWith('es')) return es;
@@ -18,7 +21,42 @@ const getLocale = (lng: string) => {
 export default function App() {
   const { t, i18n } = useTranslation();
   const { ready, revision, refresh } = useDatabase();
+  const toast = useToast();
+  const importBackupRef = useRef<HTMLInputElement>(null);
+  const [soundsOn, setSoundsOn] = useState(() => getSoundsEnabled());
+
   const [view, setView] = useState<'home' | 'reports' | 'work-details' | 'settings'>('home');
+
+  const viewRef = useRef(view);
+  useEffect(() => {
+    viewRef.current = view;
+  }, [view]);
+
+  useEffect(() => {
+    let sub: { remove: () => void } | undefined;
+    void (async () => {
+      try {
+        const { Capacitor } = await import('@capacitor/core');
+        if (!Capacitor.isNativePlatform()) return;
+        const { App } = await import('@capacitor/app');
+        sub = await App.addListener('backButton', () => {
+          const v = viewRef.current;
+          if (v === 'work-details') {
+            setView('home');
+            return;
+          }
+          if (v === 'reports' || v === 'settings') {
+            setView('home');
+          }
+        });
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      sub?.remove();
+    };
+  }, []);
   const [selectedWorkId, setSelectedWorkId] = useState<number | null>(null);
   const [newWorkName, setNewWorkName] = useState('');
   const [newWorkGatePassword, setNewWorkGatePassword] = useState('');
@@ -135,7 +173,7 @@ export default function App() {
     setIsLoadingLocation(true);
     return new Promise((resolve) => {
       if (!navigator.geolocation) {
-        window.alert("Geolocalização não suportada");
+        toast.error(t('geo_not_supported'));
         setIsLoadingLocation(false);
         resolve(null);
         return;
@@ -151,7 +189,7 @@ export default function App() {
         },
         (error) => {
           console.error("Error getting location", error);
-          window.alert("Erro ao obter localização. Verifique as permissões.");
+          toast.error(t('geo_error'));
           setIsLoadingLocation(false);
           resolve(null);
         },
@@ -167,7 +205,7 @@ export default function App() {
 
     try {
       await store.updateWork(selectedWorkId, { lat: loc.lat, lng: loc.lng });
-      window.alert(t('location_saved'));
+      toast.success(t('location_saved'));
       refresh();
     } catch (error) {
       console.error("Failed to save location", error);
@@ -185,7 +223,7 @@ export default function App() {
         lng: loc.lng,
         updated_at: new Date().toISOString(),
       });
-      window.alert(t('location_saved'));
+      toast.success(t('location_saved'));
       refresh();
     } catch (error) {
       console.error("Failed to save special location", error);
@@ -211,8 +249,11 @@ export default function App() {
       setTripNotes('');
       setShowTripTypePicker(false);
       refresh();
+      void playTripRegisteredChime();
+      toast.success(t('toast_trip_registered'));
     } catch (error) {
       console.error('Failed to add trip:', error);
+      toast.error(t('import_failed'));
     }
   }
 
@@ -598,6 +639,38 @@ export default function App() {
     </div>
   );
 
+  async function exportBackupFile() {
+    try {
+      const data = await store.exportAllData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `rotacam-backup-${new Date().toISOString().slice(0, 19).replaceAll(':', '-').replace('T', '_')}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(t('export_done'));
+    } catch (error) {
+      console.error('Failed to export backup:', error);
+      toast.error(t('import_failed'));
+    }
+  }
+
+  async function onImportBackupFile(file: File | undefined) {
+    if (!file) return;
+    try {
+      const parsed: unknown = JSON.parse(await file.text());
+      await store.importAllData(parsed);
+      refresh();
+      toast.success(t('import_done'));
+    } catch (error) {
+      console.error('Failed to import backup:', error);
+      toast.error(t('import_failed'));
+    } finally {
+      if (importBackupRef.current) importBackupRef.current.value = '';
+    }
+  }
+
   const renderReports = () => {
     const startOfCurrentMonth = startOfMonth(new Date());
     const endOfCurrentMonth = endOfMonth(new Date());
@@ -712,6 +785,64 @@ export default function App() {
           </div>
         </div>
 
+        <div className="mb-8 rounded-2xl border border-white/5 bg-[#141414] p-5">
+          <h2 className="mb-2 flex items-center gap-2 text-lg font-bold text-white">
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/5">
+              <History size={18} className="text-[#E50914]" />
+            </span>
+            {t('sounds_title')}
+          </h2>
+          <p className="mb-4 text-xs leading-relaxed text-gray-400">{t('sounds_desc')}</p>
+          <label className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-[#1f1f1f] px-4 py-3">
+            <span className="text-sm font-bold text-white">{t('sounds_enabled')}</span>
+            <input
+              type="checkbox"
+              className="h-5 w-5 accent-[#E50914]"
+              checked={soundsOn}
+              onChange={(e) => {
+                const on = e.target.checked;
+                setSoundsOn(on);
+                setSoundsEnabled(on);
+              }}
+            />
+          </label>
+        </div>
+
+        <div className="mb-8 rounded-2xl border border-white/5 bg-[#141414] p-5">
+          <h2 className="mb-2 flex items-center gap-2 text-lg font-bold text-white">
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/5">
+              <Download size={18} className="text-blue-400" />
+            </span>
+            {t('backup_section_title')}
+          </h2>
+          <p className="mb-4 text-xs leading-relaxed text-gray-400">{t('backup_section_desc')}</p>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => void exportBackupFile()}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/15 active:scale-[0.99]"
+            >
+              <Download size={18} />
+              {t('export_backup')}
+            </button>
+            <button
+              type="button"
+              onClick={() => importBackupRef.current?.click()}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#1f1f1f] px-4 py-3 text-sm font-bold text-white transition hover:bg-white/5 active:scale-[0.99]"
+            >
+              <Upload size={18} />
+              {t('import_backup')}
+            </button>
+          </div>
+          <input
+            ref={importBackupRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => void onImportBackupFile(e.target.files?.[0])}
+          />
+        </div>
+
         <h2 className="text-lg font-bold text-white mb-6 border-b border-white/5 pb-2 flex items-center gap-2">
            <Truck size={20} className="text-[#E50914]" /> {t('data_management')}
         </h2>
@@ -720,7 +851,7 @@ export default function App() {
           <div className="p-4 bg-orange-500/5 border border-orange-500/10 rounded-xl relative overflow-hidden group">
             <h3 className="text-orange-400 text-sm font-black uppercase tracking-widest mb-1">{t('danger_zone')}</h3>
             <p className="text-xs text-orange-400/60 leading-relaxed mb-6">
-               As ações abaixo apagarão permanentemente seus registros locais.
+              {t('danger_zone_help')}
             </p>
             
             <div className="space-y-3">
@@ -746,7 +877,9 @@ export default function App() {
 
       <div className="flex flex-col items-center gap-2 opacity-30 mt-8">
         <Truck size={32} className="text-[#E50914]" />
-        <span className="text-[10px] font-black uppercase tracking-[0.4em]">CineStream Pro v2.0</span>
+        <span className="text-[10px] font-black uppercase tracking-[0.4em]">
+          {t('footer_brand')} · v{__APP_VERSION__}
+        </span>
       </div>
     </div>
   );

@@ -34,3 +34,13 @@ export interface MonthlyStats {
   month: string;
   total_trips: number;
 }
+
+/** Formato de exportação/importação de backup local (versão 1). */
+export interface RotacamExportV1 {
+  schemaVersion: 1;
+  exportedAt: string;
+  works: Work[];
+  trips: Trip[];
+  completions: WorkCompletion[];
+  settings: Setting[];
+}

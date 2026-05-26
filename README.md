@@ -1,8 +1,12 @@
-# Controle de Viagens
+# RotaCam
 
-Aplicativo **100% offline** para registrar obras, viagens (limpeza/entrega), conclusões e locais favoritos (armazém/casa). Os dados ficam no dispositivo com **SQLite nativo** no Android (via Capacitor) e com **SQLite no navegador** (jeep-sqlite + sql.js) para desenvolvimento web.
+App **offline** para **motoristas e obras**: regista viagens (limpeza / entrega), localizações, relatórios e cópias de segurança. Os dados ficam em **SQLite** no telemóvel (Android via Capacitor) e no **navegador** com jeep-sqlite para desenvolvimento.
 
-Não há integração com Gemini, Supabase ou outras APIs na aplicação.
+## Marca e identidade
+
+- Nome: **RotaCam** (rotas + camião).
+- Ícones gerados a partir de `public/brand/rota-cam.svg` (`npm run gen:icons`).
+- Sons: confirmação ao registar uma viagem (Web Audio); pode desativar em **Definições**.
 
 ## Desenvolvimento web
 
@@ -11,31 +15,20 @@ npm install
 npm run dev
 ```
 
-Abra o endereço mostrado no terminal. Na primeira execução o `postinstall` copia `sql-wasm.wasm` para `public/assets/`.
-
 ## Build Android (APK)
 
-Pré-requisitos: **Node.js**, **Android Studio** (SDK + JDK que o Studio gerenciar).
-
 ```bash
-npm install
 npm run build
-npx cap add android   # só na primeira vez
 npm run android:build
-```
-
-Depois abra o projeto Android e gere o APK:
-
-```bash
 npm run android:open
 ```
 
-No Android Studio use **Build → Build Bundle(s) / APK(s) → Build APK(s)**. O APK de debug costuma ficar em `android/app/build/outputs/apk/debug/`.
+No Android Studio: **Build → Build APK(s)**.
 
-### Permissões úteis
+## Cópia de segurança
 
-- **Localização**: o app usa `navigator.geolocation` / APIs nativas para gravar coordenadas. No Android, conceda permissão de localização ao app nas configurações do sistema.
+Em **Definições**, exporta ou importa um ficheiro **JSON** com obras, viagens e definições (fica só no dispositivo).
 
-## Estrutura de dados (SQLite)
+## Licenças / notas
 
-Tabelas: `works`, `trips`, `completions`, `settings`. O ficheiro da base no Android é gerido pelo plugin `@capacitor-community/sqlite` (sem envio para a nuvem).
+O plugin `@capacitor-community/sqlite` usa SQLCipher na stack nativa; mantivemos a base **sem encriptação** na configuração por simplicidade. Consulta a documentação do plugin se precisares de encriptação.

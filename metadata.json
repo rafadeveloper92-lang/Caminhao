@@ -1,8 +1,6 @@
 {
-  "name": "Controle de Viagens",
-  "description": "Aplicativo para caminhoneiros de obra gerenciarem viagens e obras com relatórios mensais.",
+  "name": "RotaCam",
+  "description": "App offline para motoristas: obras, viagens (limpeza/entrega), rotas e relatórios. Dados em SQLite no dispositivo.",
   "requestFramePermissions": ["geolocation"],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
+  "majorCapabilities": []
 }

@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { CapacitorSQLite, SQLiteConnection, SQLiteDBConnection } from '@capacitor-community/sqlite';
 import { defineCustomElements } from 'jeep-sqlite/loader';
-import type { Setting, Trip, Work, WorkCompletion } from '../types';
+import type { RotacamExportV1, Setting, Trip, Work, WorkCompletion } from '../types';
 
 defineCustomElements(window);
 
@@ -282,4 +282,113 @@ export async function putSetting(setting: Setting): Promise<void> {
     true,
     'no',
   );
+}
+
+
+export async function getAllCompletions(): Promise<WorkCompletion[]> {
+  const connection = getDb();
+  const res = await connection.query(
+    'SELECT id, work_id, timestamp FROM completions ORDER BY id ASC',
+  );
+  return rows(res, mapCompletion);
+}
+
+export async function getAllSettings(): Promise<Setting[]> {
+  const connection = getDb();
+  const res = await connection.query('SELECT id, lat, lng, updated_at FROM settings ORDER BY id ASC');
+  return rows(res, mapSetting);
+}
+
+export async function exportAllData(): Promise<RotacamExportV1> {
+  const works = (await getAllWorks()).slice().sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
+  const trips = await getAllTrips();
+  const completions = await getAllCompletions();
+  const settings = await getAllSettings();
+  return {
+    schemaVersion: 1,
+    exportedAt: new Date().toISOString(),
+    works,
+    trips,
+    completions,
+    settings,
+  };
+}
+
+function isRotacamExportV1(value: unknown): value is RotacamExportV1 {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as Record<string, unknown>;
+  if (v.schemaVersion !== 1) return false;
+  if (typeof v.exportedAt !== 'string') return false;
+  if (!Array.isArray(v.works) || !Array.isArray(v.trips) || !Array.isArray(v.completions) || !Array.isArray(v.settings)) {
+    return false;
+  }
+  return true;
+}
+
+export async function importAllData(payload: unknown): Promise<void> {
+  if (!isRotacamExportV1(payload)) {
+    throw new Error('Formato de backup inválido.');
+  }
+
+  const connection = getDb();
+  await connection.beginTransaction();
+  try {
+    await connection.execute('DELETE FROM trips;', false);
+    await connection.execute('DELETE FROM completions;', false);
+    await connection.execute('DELETE FROM works;', false);
+    await connection.execute('DELETE FROM settings;', false);
+
+    const worksSorted = payload.works.slice().sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
+    for (const w of worksSorted) {
+      await connection.run(
+        'INSERT INTO works (id, name, created_at, is_finished, finished_at, lat, lng, gate_password) VALUES (?,?,?,?,?,?,?,?)',
+        [
+          w.id,
+          w.name,
+          w.created_at,
+          w.is_finished ? 1 : 0,
+          w.finished_at ?? null,
+          w.lat ?? null,
+          w.lng ?? null,
+          w.gate_password ?? null,
+        ],
+        false,
+        'no',
+      );
+    }
+
+    const tripsSorted = payload.trips.slice().sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
+    for (const tr of tripsSorted) {
+      await connection.run(
+        'INSERT INTO trips (id, work_id, timestamp, type, notes) VALUES (?,?,?,?,?)',
+        [tr.id, tr.work_id, tr.timestamp, tr.type, tr.notes ?? null],
+        false,
+        'no',
+      );
+    }
+
+    const compSorted = payload.completions.slice().sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
+    for (const c of compSorted) {
+      await connection.run(
+        'INSERT INTO completions (id, work_id, timestamp) VALUES (?,?,?)',
+        [c.id, c.work_id, c.timestamp],
+        false,
+        'no',
+      );
+    }
+
+    for (const s of payload.settings) {
+      await connection.run(
+        'INSERT INTO settings (id, lat, lng, updated_at) VALUES (?,?,?,?)',
+        [s.id, s.lat, s.lng, s.updated_at],
+        false,
+        'no',
+      );
+    }
+
+    await connection.commitTransaction();
+  } catch (e) {
+    await connection.rollbackTransaction();
+    throw e;
+  }
 }

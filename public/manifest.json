@@ -1,17 +1,31 @@
 {
-  "name": "CineStream Pro",
-  "short_name": "CineStream",
-  "description": "Sistema de registro de viagens e limpezas para estafetas.",
-  "start_url": "/",
+  "name": "RotaCam — Viagens de camião",
+  "short_name": "RotaCam",
+  "description": "Registo offline de obras, viagens e rotas para motoristas.",
+  "id": "rotacam",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#141414",
   "theme_color": "#E50914",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/713/713311.png",
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

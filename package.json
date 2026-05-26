@@ -1,7 +1,7 @@
 {
-  "name": "controle-de-viagens",
+  "name": "rotacam",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
@@ -12,7 +12,8 @@
     "android:build": "npm run build && npx cap sync android",
     "android:open": "npx cap open android",
     "cap:sync": "npx cap sync",
-    "postinstall": "node scripts/copy-sql-wasm.mjs"
+    "postinstall": "node scripts/copy-sql-wasm.mjs && node scripts/generate-icons.mjs",
+    "gen:icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@capacitor-community/sqlite": "^8.1.0",
@@ -32,8 +33,10 @@
     "react-i18next": "^17.0.8"
   },
   "devDependencies": {
+    "@capacitor/app": "^8.1.0",
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4.1.14",
     "typescript": "~5.8.2",
     "vite": "^6.2.3"

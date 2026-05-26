@@ -4,6 +4,7 @@ import App from './App.tsx';
 import './index.css';
 import './i18n';
 import { DatabaseProvider, useDatabase } from './context/DatabaseContext';
+import { ToastProvider } from './components/ToastStack';
 
 function BootstrappedApp() {
   const { ready, error } = useDatabase();
@@ -30,8 +31,10 @@ function BootstrappedApp() {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <DatabaseProvider>
-      <BootstrappedApp />
-    </DatabaseProvider>
+    <ToastProvider>
+      <DatabaseProvider>
+        <BootstrappedApp />
+      </DatabaseProvider>
+    </ToastProvider>
   </StrictMode>,
 );

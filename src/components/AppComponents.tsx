@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Truck, BarChart3, Plus, ArrowLeft, Calendar, History, Trash2, Languages, Settings, Search, AlertTriangle, X, Check, MapPin, Navigation, Home, Warehouse } from 'lucide-react';
 import { format } from 'date-fns';
@@ -24,6 +24,16 @@ export const ConfirmationDialog: React.FC<{
 }> = ({ isOpen, title, message, onConfirm, onCancel, confirmText = "Confirmar", cancelText = "Cancelar", isDanger = true }) => {
   if (!isOpen) return null;
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onCancel]);
+
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <motion.div 
@@ -36,23 +46,25 @@ export const ConfirmationDialog: React.FC<{
       <motion.div
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        className="bg-[#1f1f1f] border border-white/10 w-full max-w-sm rounded-3xl p-6 shadow-2xl relative z-10"
+        role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title" className="bg-[#1f1f1f] border border-white/10 w-full max-w-sm rounded-3xl p-6 shadow-2xl relative z-10"
       >
         <div className="flex items-center gap-3 mb-4 text-orange-500">
           <AlertTriangle size={24} />
-          <h3 className="text-xl font-bold text-white">{title}</h3>
+          <h3 id="confirm-dialog-title" className="text-xl font-bold text-white">{title}</h3>
         </div>
         <p className="text-gray-400 text-sm leading-relaxed mb-8">
           {message}
         </p>
         <div className="flex gap-3 mt-4">
           <button
+            type="button"
             onClick={onCancel}
             className="flex-1 bg-white/5 hover:bg-white/10 text-white py-4 rounded-2xl font-bold text-sm transition-all active:scale-95 border border-white/5"
           >
             {cancelText}
           </button>
           <button
+            type="button"
             onClick={onConfirm}
             className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-sm transition-all active:scale-95 shadow-lg ${
               isDanger ? 'bg-[#E50914] text-white shadow-[#E50914]/20' : 'bg-green-600 text-white shadow-green-600/20'
@@ -68,14 +80,14 @@ export const ConfirmationDialog: React.FC<{
 };
 
 export const Layout: React.FC<{ children: React.ReactNode; title: string; onBack?: () => void }> = ({ children, title, onBack }) => {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   
   return (
     <div className="min-h-screen bg-[#141414] text-white font-sans">
       <header className="sticky top-0 z-50 bg-[#141414]/90 backdrop-blur-md px-4 py-4 border-b border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-4">
           {onBack && (
-            <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full transition-colors" id="back-button">
+            <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full transition-colors" id="back-button" type="button" aria-label={t('back_aria')}>
               <ArrowLeft size={24} />
             </button>
           )}
@@ -94,6 +106,8 @@ export const Layout: React.FC<{ children: React.ReactNode; title: string; onBack
             ].map((lang) => (
               <button
                 key={lang.code}
+                type="button"
+                aria-label={lang.code === 'pt' ? t('lang_pt_aria') : lang.code === 'es' ? t('lang_es_aria') : t('lang_en_aria')}
                 onClick={() => i18n.changeLanguage(lang.code)}
                 className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-all ${
                   i18n.language.startsWith(lang.code) 
@@ -218,6 +232,9 @@ export const Nav: React.FC<{ active: 'home' | 'reports' | 'settings'; onChange: 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-[#141414] border-t border-white/10 px-6 py-3 flex justify-around items-center z-50">
       <button
+        type="button"
+        aria-label={t('nav_home_aria')}
+        aria-current={active === 'home' ? 'page' : undefined}
         onClick={() => onChange('home')}
         className={`flex flex-col items-center gap-1 transition-all active:scale-90 ${active === 'home' ? 'text-[#E50914]' : 'text-gray-500'}`}
         id="nav-home"
@@ -226,6 +243,9 @@ export const Nav: React.FC<{ active: 'home' | 'reports' | 'settings'; onChange: 
         <span className="text-[10px] font-bold uppercase tracking-tighter">{t('works')}</span>
       </button>
       <button
+        type="button"
+        aria-label={t('nav_reports_aria')}
+        aria-current={active === 'reports' ? 'page' : undefined}
         onClick={() => onChange('reports')}
         className={`flex flex-col items-center gap-1 transition-all active:scale-90 ${active === 'reports' ? 'text-[#E50914]' : 'text-gray-500'}`}
         id="nav-reports"
@@ -234,6 +254,9 @@ export const Nav: React.FC<{ active: 'home' | 'reports' | 'settings'; onChange: 
         <span className="text-[10px] font-bold uppercase tracking-tighter">{t('reports')}</span>
       </button>
       <button
+        type="button"
+        aria-label={t('nav_settings_aria')}
+        aria-current={active === 'settings' ? 'page' : undefined}
         onClick={() => onChange('settings')}
         className={`flex flex-col items-center gap-1 transition-all active:scale-90 ${active === 'settings' ? 'text-[#E50914]' : 'text-gray-500'}`}
         id="nav-settings"

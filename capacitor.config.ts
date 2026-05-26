@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.controledeviagens.app',
-  appName: 'Controle de Viagens',
+  appName: 'RotaCam',
   webDir: 'dist',
   server: {
     androidScheme: 'https',

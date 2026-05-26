@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="RotaCam">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#141414"/>
+      <stop offset="1" stop-color="#0b0b0b"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <path fill="#E50914" d="M96 304h56l32-96h160l40 96h32v-40l-28-68h-52l-24-56H200l-24 56h-48l-32 96Zm72 56a40 40 0 1 1-80 0 40 40 0 0 1 80 0Zm272 0a40 40 0 1 1-80 0 40 40 0 0 1 80 0Z"/>
+  <path fill="#ffffff" opacity=".9" d="M118 256h64l20-60h188l26 60h-78l-18-44H214l-18 44h-78Z"/>
+</svg>
