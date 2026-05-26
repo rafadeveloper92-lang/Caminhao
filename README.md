@@ -36,3 +36,15 @@ Em **Definições**, exporta ou importa um ficheiro **JSON** com obras, viagens,
 ## Licenças / notas
 
 O plugin `@capacitor-community/sqlite` usa SQLCipher na stack nativa; mantivemos a base **sem encriptação** na configuração por simplicidade. Consulta a documentação do plugin se precisares de encriptação.
+
+## Build automático (GitHub Actions)
+
+Ao criar e enviar uma **tag** no formato `v*` (ex.: `v1.1.0`), o workflow **Android APK (tag)** compila o projeto e publica o **APK debug** como artefacto da execução.
+
+```bash
+git tag -a v1.1.0 -m "RotaCam 1.1.0"
+git push origin v1.1.0
+```
+
+Também podes disparar o workflow manualmente em **Actions → Android APK (tag) → Run workflow**.
+
