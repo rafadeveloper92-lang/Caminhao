@@ -30,7 +30,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     const handle = timers.current.get(id);
     if (handle) window.clearTimeout(handle);
     timers.current.delete(id);
-    setItems((prev) => prev.filter((t) => t.id !== id));
+    setItems((prev) => prev.filter((row) => row.id !== id));
   }, []);
 
   const push = useCallback(
@@ -58,9 +58,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {children}
       <div className="pointer-events-none fixed inset-x-0 top-0 z-[200] flex flex-col items-stretch gap-2 px-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <AnimatePresence initial={false}>
-          {items.map((t) => (
+          {items.map((item) => (
             <motion.div
-              key={t.id}
+              key={item.id}
               layout
               initial={{ opacity: 0, y: -10, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -71,9 +71,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               <div
                 className={[
                   'flex items-start gap-3 rounded-2xl border px-4 py-3 shadow-2xl backdrop-blur-md',
-                  t.variant === 'success' && 'border-emerald-500/25 bg-emerald-500/10 text-emerald-50',
-                  t.variant === 'error' && 'border-red-500/25 bg-red-500/10 text-red-50',
-                  t.variant === 'info' && 'border-white/10 bg-[#1f1f1f]/95 text-white',
+                  item.variant === 'success' && 'border-emerald-500/25 bg-emerald-500/10 text-emerald-50',
+                  item.variant === 'error' && 'border-red-500/25 bg-red-500/10 text-red-50',
+                  item.variant === 'info' && 'border-white/10 bg-[#1f1f1f]/95 text-white',
                 ]
                   .filter(Boolean)
                   .join(' ')}
@@ -81,15 +81,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 aria-live="polite"
               >
                 <div className="mt-0.5">
-                  {t.variant === 'success' && <CheckCircle2 className="text-emerald-300" size={18} />}
-                  {t.variant === 'error' && <AlertTriangle className="text-red-300" size={18} />}
-                  {t.variant === 'info' && <Info className="text-blue-300" size={18} />}
+                  {item.variant === 'success' && <CheckCircle2 className="text-emerald-300" size={18} />}
+                  {item.variant === 'error' && <AlertTriangle className="text-red-300" size={18} />}
+                  {item.variant === 'info' && <Info className="text-blue-300" size={18} />}
                 </div>
-                <p className="flex-1 text-sm font-semibold leading-snug">{t.message}</p>
+                <p className="flex-1 text-sm font-semibold leading-snug">{item.message}</p>
                 <button
                   type="button"
                   className="rounded-lg p-1 text-white/60 transition hover:bg-white/10 hover:text-white"
-                  onClick={() => remove(t.id)}
+                  onClick={() => remove(item.id)}
                   aria-label={t('close_toast')}
                 >
                   <X size={18} />
