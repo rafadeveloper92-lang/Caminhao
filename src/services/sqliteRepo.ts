@@ -1,7 +1,16 @@
 import { Capacitor } from '@capacitor/core';
 import { CapacitorSQLite, SQLiteConnection, SQLiteDBConnection } from '@capacitor-community/sqlite';
 import { defineCustomElements } from 'jeep-sqlite/loader';
-import type { RotacamExportV1, Setting, Trip, Work, WorkCompletion } from '../types';
+import type {
+  RotacamBackup,
+  RotacamExportV1,
+  RotacamExportV2,
+  Setting,
+  Store,
+  Trip,
+  Work,
+  WorkCompletion,
+} from '../types';
 
 defineCustomElements(window);
 
@@ -63,6 +72,18 @@ function mapSetting(r: unknown[]): Setting {
   };
 }
 
+function mapStore(r: unknown[]): Store {
+  return {
+    id: r[0] as number,
+    name: r[1] as string,
+    notes: (r[2] as string | null) ?? undefined,
+    lat: r[3] != null ? (r[3] as number) : undefined,
+    lng: r[4] != null ? (r[4] as number) : undefined,
+    created_at: r[5] as string,
+    updated_at: r[6] as string,
+  };
+}
+
 async function ensureSchema(connection: SQLiteDBConnection): Promise<void> {
   await connection.execute('PRAGMA foreign_keys = ON;', false);
 
@@ -95,6 +116,15 @@ async function ensureSchema(connection: SQLiteDBConnection): Promise<void> {
       id TEXT PRIMARY KEY,
       lat REAL NOT NULL,
       lng REAL NOT NULL,
+      updated_at TEXT NOT NULL
+    );`,
+    `CREATE TABLE IF NOT EXISTS stores (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      notes TEXT,
+      lat REAL,
+      lng REAL,
+      created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );`,
   ];
@@ -284,6 +314,64 @@ export async function putSetting(setting: Setting): Promise<void> {
   );
 }
 
+export async function getAllStores(): Promise<Store[]> {
+  const connection = getDb();
+  const res = await connection.query(
+    'SELECT id, name, notes, lat, lng, created_at, updated_at FROM stores ORDER BY name COLLATE NOCASE ASC, id ASC',
+  );
+  return rows(res, mapStore);
+}
+
+export async function addStore(input: Pick<Store, 'name' | 'notes'>): Promise<number> {
+  const connection = getDb();
+  const now = new Date().toISOString();
+  const res = await connection.run(
+    'INSERT INTO stores (name, notes, lat, lng, created_at, updated_at) VALUES (?,?,?,?,?,?)',
+    [input.name, input.notes ?? null, null, null, now, now],
+    true,
+    'no',
+  );
+  const lastId = res.changes?.lastId;
+  if (typeof lastId === 'number') return lastId;
+  const q = await connection.query('SELECT last_insert_rowid() AS id');
+  const idRow = q.values?.[0]?.[0];
+  return Number(idRow ?? 0);
+}
+
+export async function updateStore(id: number, patch: Partial<Pick<Store, 'name' | 'notes' | 'lat' | 'lng'>>): Promise<void> {
+  const connection = getDb();
+  const fields: string[] = [];
+  const vals: unknown[] = [];
+
+  if (patch.name !== undefined) {
+    fields.push('name = ?');
+    vals.push(patch.name);
+  }
+  if (patch.notes !== undefined) {
+    fields.push('notes = ?');
+    vals.push(patch.notes ?? null);
+  }
+  if (patch.lat !== undefined) {
+    fields.push('lat = ?');
+    vals.push(patch.lat ?? null);
+  }
+  if (patch.lng !== undefined) {
+    fields.push('lng = ?');
+    vals.push(patch.lng ?? null);
+  }
+  if (fields.length) {
+    fields.push('updated_at = ?');
+    vals.push(new Date().toISOString());
+    vals.push(id);
+    await connection.run(`UPDATE stores SET ${fields.join(', ')} WHERE id = ?`, vals, true, 'no');
+  }
+}
+
+export async function deleteStore(id: number): Promise<void> {
+  const connection = getDb();
+  await connection.run('DELETE FROM stores WHERE id = ?', [id], true, 'no');
+}
+
 
 export async function getAllCompletions(): Promise<WorkCompletion[]> {
   const connection = getDb();
@@ -299,18 +387,20 @@ export async function getAllSettings(): Promise<Setting[]> {
   return rows(res, mapSetting);
 }
 
-export async function exportAllData(): Promise<RotacamExportV1> {
+export async function exportAllData(): Promise<RotacamExportV2> {
   const works = (await getAllWorks()).slice().sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
   const trips = await getAllTrips();
   const completions = await getAllCompletions();
   const settings = await getAllSettings();
+  const stores = (await getAllStores()).slice().sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     exportedAt: new Date().toISOString(),
     works,
     trips,
     completions,
     settings,
+    stores,
   };
 }
 
@@ -325,8 +415,23 @@ function isRotacamExportV1(value: unknown): value is RotacamExportV1 {
   return true;
 }
 
+function isRotacamExportV2(value: unknown): value is RotacamExportV2 {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as Record<string, unknown>;
+  if (v.schemaVersion !== 2) return false;
+  if (typeof v.exportedAt !== 'string') return false;
+  if (!Array.isArray(v.works) || !Array.isArray(v.trips) || !Array.isArray(v.completions) || !Array.isArray(v.settings) || !Array.isArray(v.stores)) {
+    return false;
+  }
+  return true;
+}
+
+function isRotacamBackup(value: unknown): value is RotacamBackup {
+  return isRotacamExportV1(value) || isRotacamExportV2(value);
+}
+
 export async function importAllData(payload: unknown): Promise<void> {
-  if (!isRotacamExportV1(payload)) {
+  if (!isRotacamBackup(payload)) {
     throw new Error('Formato de backup inválido.');
   }
 
@@ -337,6 +442,7 @@ export async function importAllData(payload: unknown): Promise<void> {
     await connection.execute('DELETE FROM completions;', false);
     await connection.execute('DELETE FROM works;', false);
     await connection.execute('DELETE FROM settings;', false);
+    await connection.execute('DELETE FROM stores;', false);
 
     const worksSorted = payload.works.slice().sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
     for (const w of worksSorted) {
@@ -384,6 +490,18 @@ export async function importAllData(payload: unknown): Promise<void> {
         false,
         'no',
       );
+    }
+
+    if (isRotacamExportV2(payload)) {
+      const storesSorted = payload.stores.slice().sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
+      for (const st of storesSorted) {
+        await connection.run(
+          'INSERT INTO stores (id, name, notes, lat, lng, created_at, updated_at) VALUES (?,?,?,?,?,?,?)',
+          [st.id, st.name, st.notes ?? null, st.lat ?? null, st.lng ?? null, st.created_at, st.updated_at],
+          false,
+          'no',
+        );
+      }
     }
 
     await connection.commitTransaction();

@@ -30,12 +30,23 @@ export interface Trip {
   notes?: string;
 }
 
+/** Loja onde compras materiais para as obras (com localização opcional). */
+export interface Store {
+  id?: number;
+  name: string;
+  notes?: string;
+  lat?: number;
+  lng?: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface MonthlyStats {
   month: string;
   total_trips: number;
 }
 
-/** Formato de exportação/importação de backup local (versão 1). */
+/** Backup legado (sem lojas). */
 export interface RotacamExportV1 {
   schemaVersion: 1;
   exportedAt: string;
@@ -44,3 +55,16 @@ export interface RotacamExportV1 {
   completions: WorkCompletion[];
   settings: Setting[];
 }
+
+/** Backup atual (inclui lojas). */
+export interface RotacamExportV2 {
+  schemaVersion: 2;
+  exportedAt: string;
+  works: Work[];
+  trips: Trip[];
+  completions: WorkCompletion[];
+  settings: Setting[];
+  stores: Store[];
+}
+
+export type RotacamBackup = RotacamExportV1 | RotacamExportV2;

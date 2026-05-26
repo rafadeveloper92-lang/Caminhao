@@ -88,7 +88,18 @@ const resources = {
       "lang_es_aria": "Mudar idioma para espanhol",
       "lang_en_aria": "Mudar idioma para inglês",
       "toast_trip_registered": "Viagem registada.",
-      "close_toast": "Fechar aviso"
+      "close_toast": "Fechar aviso",
+      "stores_section_title": "Lojas e fornecedores",
+      "stores_section_desc": "Cadastre lojas onde compra materiais para as obras e guarde a localização para abrir a navegação.",
+      "store_name_placeholder": "Nome da loja (ex.: Leroy, materiais de construção)",
+      "store_notes_placeholder": "Notas (opcional)",
+      "new_store": "Nova loja",
+      "stores_empty": "Ainda não tem lojas registadas.",
+      "set_store_location": "Definir localização",
+      "navigate_to_store": "Navegar",
+      "delete_store": "Apagar loja",
+      "delete_store_confirm": "Apagar esta loja?",
+      "delete_store_confirm_desc": "A loja será removida da lista. Pode voltar a criá-la a qualquer momento.",
     }
   },
   es: {
@@ -176,7 +187,18 @@ const resources = {
       "lang_es_aria": "Cambiar idioma a español",
       "lang_en_aria": "Cambiar idioma a inglés",
       "toast_trip_registered": "Viaje registrado.",
-      "close_toast": "Cerrar aviso"
+      "close_toast": "Cerrar aviso",
+      "stores_section_title": "Tiendas y proveedores",
+      "stores_section_desc": "Registra tiendas donde compras materiales para tus obras y guarda la ubicación para abrir la navegación.",
+      "store_name_placeholder": "Nombre de la tienda",
+      "store_notes_placeholder": "Notas (opcional)",
+      "new_store": "Nueva tienda",
+      "stores_empty": "Aún no hay tiendas registradas.",
+      "set_store_location": "Definir ubicación",
+      "navigate_to_store": "Navegar",
+      "delete_store": "Eliminar tienda",
+      "delete_store_confirm": "¿Eliminar esta tienda?",
+      "delete_store_confirm_desc": "Se eliminará de la lista. Puedes crearla de nuevo cuando quieras.",
     }
   },
   en: {
@@ -264,7 +286,18 @@ const resources = {
       "lang_es_aria": "Switch language to Spanish",
       "lang_en_aria": "Switch language to English",
       "toast_trip_registered": "Trip saved.",
-      "close_toast": "Dismiss notification"
+      "close_toast": "Dismiss notification",
+      "stores_section_title": "Stores & suppliers",
+      "stores_section_desc": "Save stores where you buy jobsite materials and keep locations handy for navigation.",
+      "store_name_placeholder": "Store name",
+      "store_notes_placeholder": "Notes (optional)",
+      "new_store": "New store",
+      "stores_empty": "No stores saved yet.",
+      "set_store_location": "Save location",
+      "navigate_to_store": "Navigate",
+      "delete_store": "Delete store",
+      "delete_store_confirm": "Delete this store?",
+      "delete_store_confirm_desc": "It will be removed from your list. You can add it again anytime.",
     }
   }
 };

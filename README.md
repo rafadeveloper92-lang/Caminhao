@@ -1,6 +1,6 @@
 # RotaCam
 
-App **offline** para **motoristas e obras**: regista viagens (limpeza / entrega), localizações, relatórios e cópias de segurança. Os dados ficam em **SQLite** no telemóvel (Android via Capacitor) e no **navegador** com jeep-sqlite para desenvolvimento.
+App **offline** para **motoristas e obras**: regista viagens (limpeza / entrega), localizações, **lojas onde compras materiais**, relatórios e cópias de segurança. Os dados ficam em **SQLite** no telemóvel (Android via Capacitor) e no **navegador** com jeep-sqlite para desenvolvimento.
 
 ## Marca e identidade
 
@@ -25,9 +25,13 @@ npm run android:open
 
 No Android Studio: **Build → Build APK(s)**.
 
+## Lojas
+
+Em **Definições → Lojas e fornecedores** cadastras lojas, podes adicionar **notas**, **gravar a localização** e abrir **navegação** (como para armazém/casa).
+
 ## Cópia de segurança
 
-Em **Definições**, exporta ou importa um ficheiro **JSON** com obras, viagens e definições (fica só no dispositivo).
+Em **Definições**, exporta ou importa um ficheiro **JSON** com obras, viagens, **lojas** e definições (fica só no dispositivo). Backups antigos (`schemaVersion: 1`) continuam a ser aceites.
 
 ## Licenças / notas
 

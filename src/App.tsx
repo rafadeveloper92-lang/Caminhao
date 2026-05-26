@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as store from './services/sqliteRepo';
-import { Work, Trip, WorkCompletion, Setting } from './types';
+import { Work, Trip, WorkCompletion, Setting, Store } from './types';
 import { Layout, WorkCard, TripHistory, Nav, ConfirmationDialog } from './components/AppComponents';
-import { Plus, Package, Calendar, Truck, Search, Trash2, History, AlertTriangle, MapPin, Navigation, Home, Warehouse, Lock, Edit2, Download, Upload } from 'lucide-react';
+import { Plus, Package, Calendar, Truck, Search, Trash2, History, AlertTriangle, MapPin, Navigation, Home, Warehouse, Lock, Edit2, Download, Upload, ShoppingBag } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { ptBR, es, enUS } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
@@ -73,6 +73,11 @@ export default function App() {
   const [homeSetting, setHomeSetting] = useState<Setting | null>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
 
+  const [stores, setStores] = useState<Store[]>([]);
+  const [newStoreName, setNewStoreName] = useState('');
+  const [newStoreNotes, setNewStoreNotes] = useState('');
+  const [showAddStore, setShowAddStore] = useState(false);
+
   const filteredWorks = works.filter((w) =>
     w.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
@@ -121,6 +126,11 @@ export default function App() {
     }
     void store.getTripsForWork(selectedWorkId).then(setTrips);
   }, [ready, revision, selectedWorkId]);
+
+  useEffect(() => {
+    if (!ready) return;
+    void store.getAllStores().then(setStores);
+  }, [ready, revision]);
 
   async function addWork() {
     if (!newWorkName.trim()) return;
@@ -671,6 +681,51 @@ export default function App() {
     }
   }
 
+  async function addStoreFromSettings() {
+    if (!newStoreName.trim()) return;
+    try {
+      await store.addStore({ name: newStoreName.trim(), notes: newStoreNotes.trim() || undefined });
+      setNewStoreName('');
+      setNewStoreNotes('');
+      setShowAddStore(false);
+      refresh();
+      toast.success(t('success'));
+    } catch (error) {
+      console.error('Failed to add store:', error);
+      toast.error(t('import_failed'));
+    }
+  }
+
+  async function saveStoreLocationForStore(storeId: number) {
+    const loc = await getGeoLocation();
+    if (!loc) return;
+    try {
+      await store.updateStore(storeId, { lat: loc.lat, lng: loc.lng });
+      refresh();
+      toast.success(t('location_saved'));
+    } catch (error) {
+      console.error('Failed to save store location:', error);
+    }
+  }
+
+  function deleteStoreRow(storeId: number) {
+    setConfirmDialog({
+      isOpen: true,
+      title: t('delete_store_confirm'),
+      message: t('delete_store_confirm_desc'),
+      onConfirm: async () => {
+        try {
+          await store.deleteStore(storeId);
+          closeConfirm();
+          refresh();
+        } catch (error) {
+          console.error('Failed to delete store:', error);
+          closeConfirm();
+        }
+      },
+    });
+  }
+
   const renderReports = () => {
     const startOfCurrentMonth = startOfMonth(new Date());
     const endOfCurrentMonth = endOfMonth(new Date());
@@ -783,6 +838,122 @@ export default function App() {
               {t('set_home')}
             </button>
           </div>
+        </div>
+
+        <div className="mb-8 rounded-2xl border border-white/5 bg-[#141414] p-5">
+          <h2 className="mb-2 flex items-center gap-2 text-lg font-bold text-white">
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/5">
+              <ShoppingBag size={18} className="text-emerald-400" />
+            </span>
+            {t('stores_section_title')}
+          </h2>
+          <p className="mb-4 text-xs leading-relaxed text-gray-400">{t('stores_section_desc')}</p>
+
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setShowAddStore((v) => !v)}
+              className="inline-flex items-center gap-2 rounded-full bg-[#E50914] px-4 py-2 text-xs font-black uppercase tracking-widest text-white transition hover:bg-[#b00710] active:scale-95"
+            >
+              <Plus size={16} />
+              {t('new_store')}
+            </button>
+          </div>
+
+          <AnimatePresence>
+            {showAddStore && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden mb-4"
+              >
+                <div className="rounded-xl border border-emerald-500/20 bg-[#1f1f1f] p-4">
+                  <input
+                    autoFocus
+                    className="mb-3 w-full rounded-lg border border-white/10 bg-[#141414] p-3 text-sm text-white focus:border-emerald-500/40 focus:outline-none"
+                    placeholder={t('store_name_placeholder')}
+                    value={newStoreName}
+                    onChange={(e) => setNewStoreName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && void addStoreFromSettings()}
+                  />
+                  <textarea
+                    className="mb-3 h-20 w-full resize-none rounded-lg border border-white/10 bg-[#141414] p-3 text-sm text-white focus:border-emerald-500/40 focus:outline-none"
+                    placeholder={t('store_notes_placeholder')}
+                    value={newStoreNotes}
+                    onChange={(e) => setNewStoreNotes(e.target.value)}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void addStoreFromSettings()}
+                      className="flex-1 rounded-lg bg-emerald-600 py-2 text-sm font-bold text-white transition hover:bg-emerald-500 active:scale-95"
+                    >
+                      {t('save')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddStore(false);
+                        setNewStoreName('');
+                        setNewStoreNotes('');
+                      }}
+                      className="flex-1 rounded-lg bg-white/5 py-2 text-sm font-bold text-gray-300 transition hover:bg-white/10 active:scale-95"
+                    >
+                      {t('cancel')}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {stores.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-white/10 p-6 text-center text-sm text-gray-500">{t('stores_empty')}</div>
+          ) : (
+            <div className="space-y-3">
+              {stores.map((st) => (
+                <div key={st.id} className="rounded-xl border border-white/10 bg-[#1f1f1f] p-4">
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-base font-bold text-white">{st.name}</div>
+                      {st.notes ? <div className="mt-1 text-xs text-gray-400">{st.notes}</div> : null}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => deleteStoreRow(st.id!)}
+                      className="shrink-0 rounded-lg border border-white/10 p-2 text-orange-400 transition hover:bg-orange-500/10"
+                      aria-label={t('delete_store')}
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <button
+                      type="button"
+                      disabled={isLoadingLocation}
+                      onClick={() => void saveStoreLocationForStore(st.id!)}
+                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-white/5 py-3 text-xs font-bold text-white transition hover:bg-white/10 disabled:opacity-50"
+                    >
+                      <MapPin size={16} />
+                      {t('set_store_location')}
+                    </button>
+                    {st.lat != null && st.lng != null ? (
+                      <button
+                        type="button"
+                        onClick={() => handleNavigate(st.lat!, st.lng!)}
+                        className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600/20 py-3 text-xs font-bold text-blue-300 transition hover:bg-blue-600/30"
+                      >
+                        <Navigation size={16} />
+                        {t('navigate_to_store')}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="mb-8 rounded-2xl border border-white/5 bg-[#141414] p-5">
