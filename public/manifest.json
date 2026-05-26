@@ -1,0 +1,17 @@
+{
+  "name": "CineStream Pro",
+  "short_name": "CineStream",
+  "description": "Sistema de registro de viagens e limpezas para estafetas.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#141414",
+  "theme_color": "#E50914",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/713/713311.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

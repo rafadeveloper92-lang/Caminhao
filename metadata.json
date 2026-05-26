@@ -1,0 +1,8 @@
+{
+  "name": "Controle de Viagens",
+  "description": "Aplicativo para caminhoneiros de obra gerenciarem viagens e obras com relatórios mensais.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
